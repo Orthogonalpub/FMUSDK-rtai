@@ -39,6 +39,10 @@
 FMU fmu; // the fmu to simulate
 
 
+static long overrun=0;
+static long totalrun=0;
+
+
 int get_system_output(char *cmd, char *output, int size) {
         FILE *fp=NULL;
             fp = popen(cmd, "r");
@@ -54,10 +58,16 @@ int get_system_output(char *cmd, char *output, int size) {
 
 
 
-double compute_time(struct timespec start, struct timespec end) {
-    double diffSec;
+double compute_time(struct timespec start, struct timespec end ,float h) {
+    double diffSec, ratio;
     diffSec = (double)(end.tv_sec-start.tv_sec)*1000000  + (double)(end.tv_nsec - start.tv_nsec)/1000;
-    printf("Done 1 DoStep: diffSec %.6lf  us \n", diffSec);
+    ratio = diffSec/(h*1000000);  // in us
+
+    totalrun++;
+    if ( ratio>=1.0)
+        overrun++;
+
+    printf("Done 1 step in %.6lf us, ratio=[%.2lf]. Total# = [%d], Overrun# = [%d]\n", diffSec, ratio, totalrun, overrun);
     return diffSec;
 }
 
@@ -74,6 +84,9 @@ static int simulate(FMU* fmu, double tEnd, double h, fmi2Boolean loggingOn, char
     strcpy( cmd, "cat /tmp/modelDescription.xml   | grep stopTime  | awk -F'=' '{print $2}' |  awk -F'\"' '{print $2}'" );
     get_system_output ( cmd, tmppstr,  63);
     sscanf( tmppstr, "%le", &tEnd);
+
+
+    ///   printf("aaaaaaaaaaaaa %f %f \n", h, tEnd  );
 
 
 
@@ -189,7 +202,7 @@ static int simulate(FMU* fmu, double tEnd, double h, fmi2Boolean loggingOn, char
     cnt = 0;
 
 
-    printf("h is %f, tend is %f\n", h, tEnd);
+    //printf("h is %f, tend is %f\n", h, tEnd);
 
 
 
@@ -231,6 +244,7 @@ static int simulate(FMU* fmu, double tEnd, double h, fmi2Boolean loggingOn, char
         if (h > tEnd - time) {
             hh = tEnd - time;
         }
+
         fmi2Flag = fmu->doStep(c, time, hh, fmi2True);
         if (fmi2Flag == fmi2Discard) {
             fmi2Boolean b;
@@ -254,8 +268,8 @@ static int simulate(FMU* fmu, double tEnd, double h, fmi2Boolean loggingOn, char
 
         clock_gettime(CLOCK_MONOTONIC, &end);
         if (nSteps%100==0 ) {       //
-            compute_time(start, end);
-            printf( "==== Fixed time step/us loop: %f / %f\n", time, tEnd);
+            compute_time(start, end, h);
+            printf( "==== Fixed time step:  %f of %f done.\n", time, tEnd);
         }
 
 
@@ -280,7 +294,7 @@ static int simulate(FMU* fmu, double tEnd, double h, fmi2Boolean loggingOn, char
 
     // print simulation summary
     printf("Simulation from %g to %g terminated successful\n", tStart, tEnd);
-    printf("  steps ............ %d\n", nSteps);
+    printf("  steps ............ %d\n", nSteps-1);
     printf("  fixed step size .. %g\n", h);
     return 1; // success
 
