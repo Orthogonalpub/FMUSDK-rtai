@@ -1,29 +1,7 @@
 /* -------------------------------------------------------------------------
  * main.c
- * Implements simulation of a single FMU instance
- * that implements the "FMI for Co-Simulation 2.0" interface.
- * Command syntax: see printHelp()
- * Simulates the given FMU from t = 0 .. tEnd with fixed step size h and
- * writes the computed solution to file 'result.csv'.
- * The CSV file (comma-separated values) may e.g. be plotted using
- * OpenOffice Calc or Microsoft Excel.
- * This program demonstrates basic use of an FMU.
- * Real applications may use advanced master algorithms to co-simulate
- * many FMUs, limit the numerical error using error estimation
- * and back-stepping, provide graphical plotting utilities, debug support,
- * and user control of parameter and start values, or perform a clean
- * error handling (e.g. call freeSlaveInstance when a call to the fmu
- * returns with error). All this is missing here.
  *
- * Revision history
- *  07.03.2014 initial version released in FMU SDK 2.0.0
- *
- * Free libraries and tools used to implement this simulator:
- *  - header files from the FMI specification
- *  - libxml2 XML parser, see http://xmlsoft.org
- *  - 7z.exe 4.57 zip and unzip tool, see http://www.7-zip.org
- * Author: Adrian Tirea
- * Copyright QTronic GmbH. All rights reserved.
+ * Author: Orthogonal 
  * -------------------------------------------------------------------------*/
 
 #include <stdlib.h>
@@ -32,33 +10,29 @@
 #include "fmi2.h"
 #include "sim_support.h"
 
-
 #include <rtai_lxrt.h>
 
-
 FMU fmu; // the fmu to simulate
-
 
 static long overrun=0;
 static long totalrun=0;
 
-
 int get_system_output(char *cmd, char *output, int size) {
-        FILE *fp=NULL;
-            fp = popen(cmd, "r");
-                if (fp) {
-                            if(fgets(output, size, fp) != NULL) {
-                                            if(output[strlen(output)-1] == '\n')
-                                                                output[strlen(output)-1] = '\0';
-                                                                        }
-                                                                                pclose(fp);
-                                                                                    }
-                                                                                        return 0;
+    FILE *fp=NULL;
+    fp = popen(cmd, "r");
+    if (fp) {
+        if(fgets(output, size, fp) != NULL) {
+            if(output[strlen(output)-1] == '\n')
+                output[strlen(output)-1] = '\0';
+        }
+        pclose(fp);
+    }
+    return 0;
 }
 
 
 
-double compute_time(struct timespec start, struct timespec end ,float h) {
+double compute_time(struct timespec start, struct timespec end,float h) {
     double diffSec, ratio;
     diffSec = (double)(end.tv_sec-start.tv_sec)*1000000  + (double)(end.tv_nsec - start.tv_nsec)/1000;
     ratio = diffSec/(h*1000000);  // in us
@@ -67,7 +41,7 @@ double compute_time(struct timespec start, struct timespec end ,float h) {
     if ( ratio>=1.0)
         overrun++;
 
-    printf("Done 1 step in %.6lf us, ratio=[%.2lf]. Total# = [%d], Overrun# = [%d]\n", diffSec, ratio, totalrun, overrun);
+    printf("Check 1 sample step: done time window=[%.6lf us], ratio=[%.2lf%]. Total#=[%d], Overrun#=[%d]\n", diffSec, ratio, totalrun, overrun);
     return diffSec;
 }
 
@@ -75,6 +49,7 @@ double compute_time(struct timespec start, struct timespec end ,float h) {
 // simulate the given FMU from tStart = 0 to tEnd.
 static int simulate(FMU* fmu, double tEnd, double h, fmi2Boolean loggingOn, char separator,
                     int nCategories, char **categories) {
+
 
     char *tmppstr=(char*)malloc(512);
     char cmd[128];
@@ -86,7 +61,27 @@ static int simulate(FMU* fmu, double tEnd, double h, fmi2Boolean loggingOn, char
     sscanf( tmppstr, "%le", &tEnd);
 
 
-    ///   printf("aaaaaaaaaaaaa %f %f \n", h, tEnd  );
+
+    int outputrow_step=1;
+    int outputlog_step=1;
+    double tmpd = tEnd/h;
+     
+    while ( (tmpd/outputrow_step)>1200 ){
+        outputrow_step = outputrow_step*10;
+        if (outputrow_step>1000000000){
+            printf ( "Invalid step and end time, exit \n" );
+            exit(-1);
+        }
+    }
+    while ( (tmpd/outputlog_step)>200 ){
+        outputlog_step = outputlog_step*10;
+        if (outputlog_step>1000000000){
+            printf ( "Invalid step and end time, exit \n" );
+            exit(-1);
+        }
+    }
+
+    printf( "===== outputrow_step=%d outputlog_step=%d\n", outputrow_step, outputlog_step);
 
 
 
@@ -133,9 +128,6 @@ static int simulate(FMU* fmu, double tEnd, double h, fmi2Boolean loggingOn, char
 
 
 
-
-
-
     fmi2Flag = fmu->setupExperiment(c, toleranceDefined, tolerance, tStart, fmi2True, tEnd);
     if (fmi2Flag > fmi2Warning) {
         return error("could not initialize model; failed FMI setup experiment");
@@ -160,9 +152,6 @@ static int simulate(FMU* fmu, double tEnd, double h, fmi2Boolean loggingOn, char
     // output solution for time t0
     outputRow(fmu, c, tStart, file, separator, fmi2True);  // output column names
     outputRow(fmu, c, tStart, file, separator, fmi2False); // output values
-
-
-
 
 
     // ================= added by jiacheng on 0323 ==================================
@@ -195,44 +184,13 @@ static int simulate(FMU* fmu, double tEnd, double h, fmi2Boolean loggingOn, char
 
     rt_task_make_periodic(task,rt_get_time()+period*10,period);
 
-
     //clock_gettime(CLOCK_MONOTONIC, &org);
-    //////printf( "==== start loop:  stopTime[%ld], stepTime[%ld] %d, pid=%d\n", this->stopTime_us, this->stepTime_us,  this->runStatus, getpid()) ;
+    //printf( "==== start loop:  stopTime[%ld], stepTime[%ld] %d, pid=%d\n", this->stopTime_us, this->stepTime_us,  this->runStatus, getpid()) ;
 
     cnt = 0;
 
 
-    //printf("h is %f, tend is %f\n", h, tEnd);
 
-
-
-    //////////////// enter the simulation loop
-    //time = tStart;
-    //while (time < tEnd) {
-    //    // check not to pass over end time
-    //    if (h > tEnd - time) {
-    //        hh = tEnd - time;
-    //    }
-    //    fmi2Flag = fmu->doStep(c, time, hh, fmi2True);
-    //    if (fmi2Flag == fmi2Discard) {
-    //        fmi2Boolean b;
-    //        // check if model requests to end simulation
-    //        if (fmi2OK != fmu->getBooleanStatus(c, fmi2Terminated, &b)) {
-    //            return error("could not complete simulation of the model. getBooleanStatus return other than fmi2OK");
-    //        }
-    //        if (b == fmi2True) {
-    //            return error("the model requested to end the simulation");
-    //        }
-    //        return error("could not complete simulation of the model");
-    //    }
-    //    if (fmi2Flag != fmi2OK) return error("could not complete simulation of the model");
-    //    time += hh;
-    //    outputRow(fmu, c, time, file, separator, fmi2False); // output values for this step
-    //    nSteps++;
-    //}
-
-
-    // h is the step time
     time = tStart;
     while (time < tEnd) {
 
@@ -260,14 +218,14 @@ static int simulate(FMU* fmu, double tEnd, double h, fmi2Boolean loggingOn, char
         if (fmi2Flag != fmi2OK) return error("could not complete simulation of the model");
         time += hh;
 
-        if (nSteps%10==0 )
+        if (nSteps%outputrow_step==0 )
             outputRow(fmu, c, time, file, separator, fmi2False); // output values for this step
 
         nSteps++;
 
 
         clock_gettime(CLOCK_MONOTONIC, &end);
-        if (nSteps%100==0 ) {       //
+        if (nSteps%outputlog_step==0 ) {       //
             compute_time(start, end, h);
             printf( "==== Fixed time step:  %f of %f done.\n", time, tEnd);
         }

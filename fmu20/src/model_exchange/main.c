@@ -1,30 +1,3 @@
-/* ------------------------------------------------------------------------- 
- * main.c
- * Implements simulation of a single FMU instance using the forward Euler
- * method for numerical integration.
- * Command syntax: see printHelp()
- * Simulates the given FMU from t = 0 .. tEnd with fixed step size h and 
- * writes the computed solution to file 'result.csv'.
- * The CSV file (comma-separated values) may e.g. be plotted using 
- * OpenOffice Calc or Microsoft Excel. 
- * This program demonstrates basic use of an FMU.
- * Real applications may use advanced numerical solvers instead, means to 
- * exactly locate state events in time, graphical plotting utilities, support 
- * for co-execution of many FMUs, stepping and debug support, user control
- * of parameter and start values etc. 
- * All this is missing here.
- *
- * Revision history
- *  07.03.2014 initial version released in FMU SDK 2.0.0
- *
- * Free libraries and tools used to implement this simulator:
- *  - header files from the FMU specification
- *  - libxml2 XML parser, see http://xmlsoft.org
- *  - 7z.exe 4.57 zip and unzip tool, see http://www.7-zip.org
- * Author: Adrian Tirea
- * Copyright QTronic GmbH. All rights reserved.
- * -------------------------------------------------------------------------*/
-
 #include <stdlib.h>
 #include <stdio.h>
 #include "fmi2.h"

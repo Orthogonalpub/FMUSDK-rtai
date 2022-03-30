@@ -2,7 +2,6 @@
 rem ------------------------------------------------------------
 rem This batch builds the FMU simulator fmu20sim_cs.exe
 rem Usage: build_fmusim_cs.bat (-win64)
-rem Copyright QTronic GmbH. All rights reserved
 rem ------------------------------------------------------------
 
 setlocal

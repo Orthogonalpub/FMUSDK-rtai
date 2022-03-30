@@ -6,23 +6,6 @@
  * following capability flags are set to fmi2True:
  *    canHandleVariableCommunicationStepSize, i.e. fmi2DoStep step size can vary
  * and all other capability flags are set to default, i.e. to fmi2False or 0.
- *
- * Revision history
- *  07.03.2014 initial version released in FMU SDK 2.0.0
- *  02.04.2014 allow modules to request termination of simulation, better time
- *             event handling, initialize() moved from fmi2EnterInitialization to
- *             fmi2ExitInitialization, correct logging message format in fmi2DoStep.
- *  10.04.2014 use FMI 2.0 headers that prefix function and types names with 'fmi2'.
- *  13.06.2014 when fmi2setDebugLogging is called with 0 categories, set all
- *             categories to loggingOn value.
- *  09.07.2014 track all states of Model-exchange and Co-simulation and check
- *             the allowed calling sequences, explicit isTimeEvent parameter for
- *             eventUpdate function of the model, lazy computation of computed values.
- *  07.05.2021 https://github.com/qtronic/fmusdk issue #6: allow NULL vector argument
- *             for FMI functions when there are zero states
- *
- * Author: Adrian Tirea
- * Copyright QTronic GmbH. All rights reserved.
  * ---------------------------------------------------------------------------*/
 
 #ifdef __cplusplus
